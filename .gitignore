@@ -1,0 +1,12 @@
+.idea/
+.serverless/
+node_modules/
+.vscode/
+dist
+*.iml
+.DS_Store
+venv
+.venv
+__pycache__
+*.pyc
+bin/

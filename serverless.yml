@@ -1,0 +1,65 @@
+service: manage-quicksight-ip
+frameworkVersion: ^3.22.0
+configValidationMode: warn
+custom:
+    stage: dev
+    region: eu-north-1
+    deploymentBucket: ${env:S3_DEPLOYMENT_BUCKET}
+    accountId: ${env:ACCOUNT_NUMBER}
+    pythonRequirements:
+      dockerizePip: true
+      layer: false
+      slim: true
+provider:
+    name: aws
+    runtime: python3.12
+    stage: ${self:custom.stage}
+    region: ${self:custom.region}
+    memorySize: 256
+    architecture: arm64
+    timeout: 10
+    iam:
+        role:
+            statements:
+                - Effect: Allow
+                  Action:
+                    - dynamodb:DescribeTable
+                    - dynamodb:PutItem
+                    - dynamodb:GetItem
+                    - dynamodb:DeleteItem
+                    - dynamodb:Query
+                    - dynamodb:CreateTable
+                    - dynamodb:Scan
+                  Resource:
+                    - "arn:aws:dynamodb:eu-north-1:${env:ACCOUNT_NUMBER}:table/quicksight-ips-v1"
+                    - "arn:aws:dynamodb:eu-north-1:${env:ACCOUNT_NUMBER}:table/quicksight-ips-v1/index/deleted-username-gsi"
+                - Effect: Allow
+                  Action:
+                    - quicksight:UpdateIpRestriction
+                    - quicksight:DescribeIpRestriction
+                  Resource:
+                    - "*"
+plugins:
+    - serverless-python-requirements
+package:
+  individually: true
+functions:
+    update-ip-restriction:
+        description: "add-quicksight-ip uses"
+        name: update-quicksight-ip-restriction
+        handler: update_ip_restriction.lambda_handler
+        environment:
+          ACCOUNT_ID: ${env:ACCOUNT_NUMBER}
+        logRetentionInDays: 30
+        reservedConcurrency: 1
+    remove-ip-restriction:
+        name: remove-quicksight-ip-restriction
+        handler: remove_ip_restriction.lambda_handler
+        events:
+            - schedule:
+                name: ${self:service}
+                rate: rate(3 hours)
+        environment:
+          ACCOUNT_ID: ${env:ACCOUNT_NUMBER}
+        logRetentionInDays: 30
+        reservedConcurrency: 1
